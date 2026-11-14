@@ -3,7 +3,7 @@ Kiểm thử toàn diện RESTful API cho LibMaster (new_python)
 """
 import unittest
 from fastapi.testclient import TestClient
-from main import app
+from backend.main import app
 
 
 class TestLibraryAPI(unittest.TestCase):

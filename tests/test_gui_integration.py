@@ -4,8 +4,8 @@ Kiểm thử tích hợp API Controllers và Giao diện cho LibMaster
 import unittest
 from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
-from main import app
-from api_client import (
+from backend.main import app
+from client.api_client import (
     APIClient,
     UserAPIController,
     BookAPIController,
@@ -16,7 +16,7 @@ from api_client import (
     DashboardAPIController,
     ReportAPIController
 )
-from views import (
+from client.views import (
     DashboardView,
     BooksView,
     CategoriesView,

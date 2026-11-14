@@ -3,7 +3,7 @@
 """
 import sys
 from config import load_config
-from api_client import APIClient
+from client.api_client import APIClient
 
 
 def self_test():
@@ -21,8 +21,9 @@ if __name__ == "__main__":
         self_test()
     elif "--server" in sys.argv:
         import uvicorn
-        uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
+        uvicorn.run("backend.main:app", host="0.0.0.0", port=8080, reload=True)
     else:
-        from gui_app import ModernLibraryApp
+        from client.main import ModernLibraryApp
         app = ModernLibraryApp()
         app.mainloop()
+

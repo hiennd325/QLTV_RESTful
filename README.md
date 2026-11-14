@@ -39,36 +39,43 @@ FINE_PER_DAY=5000
 
 ### 3. Khởi tạo dữ liệu mẫu (Tùy chọn):
 ```bash
-python reset_db.py
-python seed_data.py
+python -m scripts.reset_db
+python -m scripts.seed_data
 ```
 
 ### 4. Khởi chạy Ứng Dụng
 
-#### Cách A: Khởi chạy Máy chủ RESTful API (Backend)
+#### Cách A: Dùng file điều phối tổng hợp (`app.py`)
 ```bash
-python server.py
-# hoặc: python app.py --server
-# hoặc: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
-```
-- **Tài liệu Swagger UI**: `http://localhost:8080/docs`
-- **Tài liệu ReDoc**: `http://localhost:8080/redoc`
+# Khởi chạy FastAPI Server (cổng 8080):
+python app.py --server
 
-#### Cách B: Khởi chạy Giao diện Desktop (CustomTkinter GUI Client)
-Giao diện giữ nguyên 100% đồ họa gốc, kết nối ngầm hoàn toàn qua RESTful API:
-```bash
+# Khởi chạy Desktop GUI Client (CustomTkinter):
 python app.py
-# hoặc: python gui_app.py
-```
 
-#### Chạy kiểm tra kết nối API nhanh (Self-test):
-```bash
+# Kiểm tra nhanh kết nối Server API (Self-test):
 python app.py --test
 ```
+
+#### Cách B: Khởi chạy từng module độc lập
+- **Khởi chạy Máy chủ RESTful API (Backend)**:
+  ```bash
+  python -m backend.main
+  # hoặc dùng uvicorn trực tiếp:
+  uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload
+  ```
+  - **Tài liệu Swagger UI**: `http://localhost:8080/docs`
+  - **Tài liệu ReDoc**: `http://localhost:8080/redoc`
+
+- **Khởi chạy Giao diện Desktop (CustomTkinter GUI Client)**:
+  ```bash
+  python -m client.main
+  ```
 
 ---
 
 ## 🧪 Chạy Kiểm Thử Tự Động (Unit & Integration Tests)
+
 
 Dự án đi kèm bộ kiểm thử API toàn diện kiểm tra tất cả endpoint và mã trạng thái HTTP:
 ```bash
@@ -147,36 +154,36 @@ python -m unittest discover tests
 ## 📁 Cấu Trúc Dự Án `new_python`
 
 ```text
-├── views/              # Giao diện người dùng CustomTkinter (giữ nguyên 100% đồ họa gốc)
-├── routers/            # Các module RESTful API endpoints theo từng tài nguyên
-│   ├── auth.py         # /api/auth
-│   ├── users.py        # /api/users
-│   ├── books.py        # /api/books
-│   ├── categories.py   # /api/categories
-│   ├── members.py      # /api/members
-│   ├── borrows.py      # /api/borrows
-│   ├── overdue.py      # /api/overdue
-│   ├── dashboard.py    # /api/dashboard
-│   └── reports.py      # /api/reports
-├── models/             # Business models truy vấn MySQL
-├── tests/              # Bộ kiểm thử tự động API & GUI Client
+new_python/
+├── backend/                  # Toàn bộ mã nguồn RESTful API (FastAPI)
+│   ├── models/               # Business models truy vấn MySQL
+│   ├── routers/              # Các RESTful API router theo tài nguyên
+│   ├── auth_token.py         # Xử lý JWT / HMAC token & Password hash
+│   ├── database.py           # Kết nối & quản lý MySQL connection
+│   ├── dependencies.py       # FastAPI dependency injection (DB, Auth, RBAC)
+│   ├── mailer.py             # Dịch vụ gửi email thông báo / quá hạn
+│   ├── schemas.py            # Pydantic schemas (Request & Response validation)
+│   └── main.py               # FastAPI App instance & RESTful API entrypoint
+│
+├── client/                   # Toàn bộ ứng dụng Desktop GUI (CustomTkinter)
+│   ├── views/                # Các view / màn hình giao diện người dùng
+│   ├── api_client.py         # HTTP client & API Controllers kết nối Backend
+│   ├── theme.py              # Bảng màu Neon Purple & Slate theme
+│   ├── widgets.py            # Custom UI components (Bảng dữ liệu, Thanh tìm kiếm, ...)
+│   └── main.py               # Giao diện chính ModernLibraryApp entrypoint
+│
+├── scripts/                  # Bộ tiện ích khởi tạo và quản lý dữ liệu CSDL
+│   ├── schema.sql            # Cấu trúc bảng MySQL
+│   ├── reset_db.py           # Dọn dẹp và đặt lại CSDL
+│   └── seed_data.py          # Chèn dữ liệu mẫu thực tế
+│
+├── tests/                    # Bộ kiểm thử tự động API & GUI Client
 │   ├── test_api.py
 │   └── test_gui_integration.py
-├── api_client.py       # API Client & API Controllers kết nối HTTP RESTful
-├── app.py              # Điểm khởi chạy chính (Desktop GUI Client / Server / Self-test)
-├── gui_app.py          # Lớp giao diện chính ModernLibraryApp kết nối API
-├── server.py           # Script khởi chạy máy chủ FastAPI Backend
-├── main.py             # FastAPI App instance & OpenAPI Docs
-├── theme.py            # Theme giao diện sáng, màu sắc Neon Purple & Slate
-├── widgets.py          # Thành phần UI bảng dữ liệu, thanh tìm kiếm
-├── auth_token.py       # HMAC-SHA256 Token generator & validator (stdlib)
-├── config.py           # Đọc cấu hình từ .env
-├── database.py         # Kết nối MySQL Connector
-├── dependencies.py     # FastAPI dependencies (DB, Models, Auth, RBAC)
-├── mailer.py           # Gửi email SMTP
-├── schemas.py          # Pydantic schemas cho Request/Response validation
-├── reset_db.py         # Tiện ích dọn dẹp CSDL
-├── seed_data.py        # Tiện ích tạo dữ liệu mẫu
-├── requirements.txt    # Danh sách thư viện Python
-└── .env                # File cấu hình môi trường
+│
+├── app.py                    # File điều phối khởi chạy tổng thể (GUI / Server / Test)
+├── config.py                 # Tiện ích đọc cấu hình từ .env
+├── requirements.txt          # Danh sách thư viện Python phụ thuộc
+└── .env                      # File cấu hình biến môi trường
 ```
+
