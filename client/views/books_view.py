@@ -332,6 +332,33 @@ class BooksView(ctk.CTkFrame):
             command=self.clear_form
         ).grid(row=1, column=1, padx=4, pady=4, sticky="ew")
 
+        # Cụm Bảng Lịch Sử Mượn của cuốn sách đang chọn
+        history_box = ctk.CTkFrame(right_card, fg_color="transparent")
+        history_box.pack(fill="both", expand=True, pady=(10, 4))
+
+        ctk.CTkLabel(
+            history_box,
+            text="Lịch Sử Mượn Của Sách Này:",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=THEME["text_primary"]
+        ).pack(anchor="w", pady=(0, 4))
+
+        self.history_tree = ttk.Treeview(
+            history_box,
+            columns=("member", "borrow_date", "return_date", "status"),
+            show="headings",
+            height=4
+        )
+        self.history_tree.heading("member", text="Độc Giả")
+        self.history_tree.heading("borrow_date", text="Ngày Mượn")
+        self.history_tree.heading("return_date", text="Ngày Trả")
+        self.history_tree.heading("status", text="Trạng Thái")
+        self.history_tree.column("member", width=120)
+        self.history_tree.column("borrow_date", width=80, anchor="center")
+        self.history_tree.column("return_date", width=80, anchor="center")
+        self.history_tree.column("status", width=80, anchor="center")
+        self.history_tree.pack(fill="both", expand=True)
+
     def choose_cover_image(self):
         filetypes = [("Hình ảnh", "*.png *.jpg *.jpeg *.webp *.gif"), ("Tất cả", "*.*")]
         fpath = filedialog.askopenfilename(title="Chọn ảnh bìa sách", filetypes=filetypes)
@@ -428,6 +455,22 @@ class BooksView(ctk.CTkFrame):
         book = self.books_cache.get(b_id, {})
         self.current_cover_url = book.get("cover_image")
         self.display_cover_image(self.current_cover_url)
+        self.load_book_history(b_id)
+
+    def load_book_history(self, book_id):
+        for item in self.history_tree.get_children():
+            self.history_tree.delete(item)
+        borrow_ctrl = getattr(self.app, "controllers", {}).get("borrow")
+        if not borrow_ctrl:
+            return
+        hist = borrow_ctrl.get_borrows_by_book(book_id)
+        for h in hist:
+            self.history_tree.insert("", "end", values=(
+                h["member_name"],
+                h["borrow_date"],
+                h["return_date"] or "-",
+                h["display_status"]
+            ))
 
     def clear_form(self):
         self.b_id_var.set("")
@@ -437,6 +480,8 @@ class BooksView(ctk.CTkFrame):
         self.selected_local_image = None
         self.current_cover_url = None
         self.display_cover_image(None)
+        for item in self.history_tree.get_children():
+            self.history_tree.delete(item)
         if self.tree.selection():
             self.tree.selection_remove(self.tree.selection())
         self.refresh_categories()

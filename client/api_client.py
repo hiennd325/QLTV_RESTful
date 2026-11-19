@@ -329,6 +329,34 @@ class BorrowAPIController:
         except Exception:
             return []
 
+    def get_borrows_by_book(self, book_id):
+        try:
+            r = self.api.request("GET", f"/api/borrows/book/{book_id}")
+            if r.status_code == 200:
+                return r.json()
+            return []
+        except Exception:
+            return []
+
+    def get_borrows_by_member(self, member_id):
+        try:
+            r = self.api.request("GET", f"/api/borrows/member/{member_id}")
+            if r.status_code == 200:
+                return r.json()
+            return []
+        except Exception:
+            return []
+
+    def renew_book(self, borrow_id, days=7):
+        try:
+            payload = {"days": days}
+            r = self.api.request("POST", f"/api/borrows/{borrow_id}/renew", json=payload)
+            if r.status_code == 200:
+                return True, r.json().get("message", "Gia hạn mượn sách thành công.")
+            return False, r.json().get("detail", "Lỗi khi gia hạn mượn sách.")
+        except Exception as e:
+            return False, f"Lỗi kết nối API: {e}"
+
     def borrow_book(self, member_id_str, book_id_str, days_str):
         try:
             m_id = int(str(member_id_str).strip())
@@ -460,3 +488,25 @@ class ReportAPIController:
                 "kpis": {"books_count": 0, "members_count": 0, "borrows_count": 0, "fines_total": 0},
                 "top_books": [], "top_categories": []
             }
+
+    def export_excel(self, save_path, report_type="all"):
+        try:
+            r = self.api.request("GET", "/api/reports/export/excel", params={"report_type": report_type})
+            if r.status_code == 200:
+                with open(save_path, "wb") as f:
+                    f.write(r.content)
+                return True, "Xuất file Excel thành công!"
+            return False, f"Lỗi từ máy chủ: {r.status_code}"
+        except Exception as e:
+            return False, f"Lỗi khi lưu file: {e}"
+
+    def export_pdf(self, save_path, report_type="books"):
+        try:
+            r = self.api.request("GET", "/api/reports/export/pdf", params={"report_type": report_type})
+            if r.status_code == 200:
+                with open(save_path, "wb") as f:
+                    f.write(r.content)
+                return True, "Xuất file PDF thành công!"
+            return False, f"Lỗi từ máy chủ: {r.status_code}"
+        except Exception as e:
+            return False, f"Lỗi khi lưu file: {e}"

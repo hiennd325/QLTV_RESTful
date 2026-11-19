@@ -14,8 +14,9 @@ class BorrowModel:
             raw_kw = keyword.strip()
             kw = f"%{raw_kw}%"
             sql = """
-                SELECT b.id, m.name as member_name, bk.title as book_title,
-                       b.borrow_date, b.due_date, b.return_date, b.status, b.fine_amount
+                SELECT b.id, b.book_id, b.member_id, m.name as member_name, bk.title as book_title,
+                       b.borrow_date, b.due_date, b.return_date, b.status, b.fine_amount,
+                       COALESCE(b.renew_count, 0) as renew_count
                 FROM borrows b
                 JOIN members m ON b.member_id = m.id
                 JOIN books bk ON b.book_id = bk.id
@@ -29,14 +30,43 @@ class BorrowModel:
             return self.db.query(sql, (raw_kw, kw, kw, raw_kw, raw_kw))
 
         sql = """
-            SELECT b.id, m.name as member_name, bk.title as book_title,
-                   b.borrow_date, b.due_date, b.return_date, b.status, b.fine_amount
+            SELECT b.id, b.book_id, b.member_id, m.name as member_name, bk.title as book_title,
+                   b.borrow_date, b.due_date, b.return_date, b.status, b.fine_amount,
+                   COALESCE(b.renew_count, 0) as renew_count
             FROM borrows b
             JOIN members m ON b.member_id = m.id
             JOIN books bk ON b.book_id = bk.id
             ORDER BY b.id DESC
         """
         return self.db.query(sql)
+
+    def get_by_book_id(self, book_id):
+        """Lấy lịch sử mượn/trả chi tiết theo từng cuốn sách"""
+        sql = """
+            SELECT b.id, b.book_id, b.member_id, m.name as member_name, bk.title as book_title,
+                   b.borrow_date, b.due_date, b.return_date, b.status, b.fine_amount,
+                   COALESCE(b.renew_count, 0) as renew_count
+            FROM borrows b
+            JOIN members m ON b.member_id = m.id
+            JOIN books bk ON b.book_id = bk.id
+            WHERE b.book_id = %s
+            ORDER BY b.id DESC
+        """
+        return self.db.query(sql, (book_id,))
+
+    def get_by_member_id(self, member_id):
+        """Lấy lịch sử mượn/trả chi tiết theo từng độc giả"""
+        sql = """
+            SELECT b.id, b.book_id, b.member_id, m.name as member_name, bk.title as book_title,
+                   b.borrow_date, b.due_date, b.return_date, b.status, b.fine_amount,
+                   COALESCE(b.renew_count, 0) as renew_count
+            FROM borrows b
+            JOIN members m ON b.member_id = m.id
+            JOIN books bk ON b.book_id = bk.id
+            WHERE b.member_id = %s
+            ORDER BY b.id DESC
+        """
+        return self.db.query(sql, (member_id,))
 
     def get_recent(self, limit=8):
         sql = """
@@ -56,12 +86,51 @@ class BorrowModel:
     def create_borrow(self, book_id, member_id, borrow_date_str, due_date_str):
         # Trừ số lượng sẵn có của sách
         sql_borrow = """
-            INSERT INTO borrows (book_id, member_id, borrow_date, due_date, status)
-            VALUES (%s, %s, %s, %s, 'borrowed')
+            INSERT INTO borrows (book_id, member_id, borrow_date, due_date, status, renew_count)
+            VALUES (%s, %s, %s, %s, 'borrowed', 0)
         """
         borrow_id = self.db.execute(sql_borrow, (book_id, member_id, borrow_date_str, due_date_str))
         self.db.execute("UPDATE books SET available = available - 1 WHERE id=%s", (book_id,))
         return borrow_id
+
+    def renew_borrow(self, borrow_id, extend_days=7, max_renews=2):
+        """Gia hạn mượn sách thêm số ngày nhất định"""
+        borrow = self.get_by_id(borrow_id)
+        if not borrow:
+            raise ValueError(f"Không tìm thấy phiếu mượn ID: {borrow_id}")
+        if borrow["status"] == "returned":
+            raise ValueError("Phiếu mượn này đã được trả sách, không thể gia hạn.")
+
+        # Kiểm tra số lần đã gia hạn
+        current_renews = borrow.get("renew_count") or 0
+        if current_renews >= max_renews:
+            raise ValueError(f"Phiếu mượn này đã đạt giới hạn gia hạn tối đa ({max_renews} lần).")
+
+        # Kiểm tra xem có đang quá hạn không
+        from datetime import date, timedelta
+        today = date.today()
+        due_val = borrow["due_date"]
+        if isinstance(due_val, str):
+            due_date = datetime.strptime(due_val, "%Y-%m-%d").date()
+        else:
+            due_date = due_val
+
+        if due_date < today:
+            raise ValueError("Phiếu mượn đã quá hạn, không thể gia hạn. Vui lòng thanh toán phạt và hoàn trả sách.")
+
+        new_due_date = due_date + timedelta(days=extend_days)
+        new_due_str = new_due_date.strftime("%Y-%m-%d")
+
+        sql = "UPDATE borrows SET due_date=%s, renew_count=COALESCE(renew_count, 0) + 1 WHERE id=%s"
+        self.db.execute(sql, (new_due_str, borrow_id))
+
+        return {
+            "borrow_id": borrow_id,
+            "old_due_date": str(due_date),
+            "new_due_date": new_due_str,
+            "renew_count": current_renews + 1,
+            "extended_days": extend_days
+        }
 
     def return_borrow(self, borrow_id, fine_per_day=5000):
         borrow = self.get_by_id(borrow_id)

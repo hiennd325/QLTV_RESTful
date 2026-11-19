@@ -1,7 +1,7 @@
 """
 Reports View — Màn hình Báo Cáo & Phân Tích Thống Kê
 """
-from tkinter import ttk
+from tkinter import ttk, filedialog, messagebox
 import customtkinter as ctk
 
 from client.theme import THEME, RADIUS
@@ -12,6 +12,7 @@ class ReportsView(ctk.CTkScrollableFrame):
     Màn hình Báo Cáo & Phân Tích Thống Kê cao cấp:
     - 4 Thẻ KPI bo góc thiết kế tối giản, thanh lịch
     - Phân tích Top Sách & Top Thể Loại
+    - Xuất Báo Cáo ra file Excel & PDF
     """
     def __init__(self, parent, app, controller=None):
         super().__init__(parent, fg_color="transparent")
@@ -32,6 +33,34 @@ class ReportsView(ctk.CTkScrollableFrame):
             font=ctk.CTkFont(size=22, weight="bold"),
             text_color=THEME["text_primary"]
         ).pack(anchor="w")
+
+        # Cụm nút Xuất Báo Cáo
+        export_box = ctk.CTkFrame(header, fg_color="transparent")
+        export_box.pack(side="right")
+
+        ctk.CTkButton(
+            export_box,
+            text="📊 Xuất Excel",
+            width=110,
+            height=36,
+            fg_color="#10B981",
+            hover_color="#059669",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            corner_radius=RADIUS["pill"],
+            command=self.do_export_excel
+        ).pack(side="left", padx=4)
+
+        ctk.CTkButton(
+            export_box,
+            text="📄 Xuất PDF",
+            width=110,
+            height=36,
+            fg_color=THEME["accent_red"],
+            hover_color=THEME["accent_red_hover"],
+            font=ctk.CTkFont(size=12, weight="bold"),
+            corner_radius=RADIUS["pill"],
+            command=self.do_export_pdf
+        ).pack(side="left", padx=4)
 
         # 4 Thẻ KPI bo góc chuẩn phong cách phẳng
         cards_grid = ctk.CTkFrame(self, fg_color="transparent")
@@ -148,3 +177,39 @@ class ReportsView(ctk.CTkScrollableFrame):
             self.top_cats_tree.delete(item)
         for r in data["top_categories"]:
             self.top_cats_tree.insert("", "end", values=(r["category"], r["cnt"]))
+
+    def do_export_excel(self):
+        if not self.controller:
+            self.controller = getattr(self.app, "controllers", {}).get("report")
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[("Excel Files", "*.xlsx")],
+            initialfile="LibMaster_BaoCao.xlsx",
+            title="Lưu file Báo Cáo Excel"
+        )
+        if not file_path:
+            return
+
+        ok, msg = self.controller.export_excel(file_path, report_type="all")
+        if ok:
+            messagebox.showinfo("Thành công", f"{msg}\nĐã lưu tại: {file_path}")
+        else:
+            messagebox.showerror("Lỗi xuất Excel", msg)
+
+    def do_export_pdf(self):
+        if not self.controller:
+            self.controller = getattr(self.app, "controllers", {}).get("report")
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF Files", "*.pdf")],
+            initialfile="LibMaster_BaoCao_KhoSach.pdf",
+            title="Lưu file Báo Cáo PDF"
+        )
+        if not file_path:
+            return
+
+        ok, msg = self.controller.export_pdf(file_path, report_type="books")
+        if ok:
+            messagebox.showinfo("Thành công", f"{msg}\nĐã lưu tại: {file_path}")
+        else:
+            messagebox.showerror("Lỗi xuất PDF", msg)

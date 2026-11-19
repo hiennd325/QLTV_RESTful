@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS `borrows` (
     `due_date` DATE NOT NULL,
     `return_date` DATE NULL,
     `fine_amount` INT DEFAULT 0,
+    `renew_count` INT DEFAULT 0,
     `status` VARCHAR(20) DEFAULT 'borrowed',
     FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE,
     FOREIGN KEY (`member_id`) REFERENCES `members`(`id`) ON DELETE CASCADE

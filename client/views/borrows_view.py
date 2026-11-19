@@ -169,6 +169,18 @@ class BorrowsView(ctk.CTkFrame):
             corner_radius=RADIUS["pill"]
         ).grid(row=0, column=7, padx=6)
 
+        ctk.CTkButton(
+            top,
+            text="Gia Hạn (+7 Ngày)",
+            command=self.do_renew,
+            height=36,
+            fg_color=THEME["accent_orange"],
+            hover_color=THEME["accent_orange_hover"],
+            text_color=THEME["text_white"],
+            font=ctk.CTkFont(size=12, weight="bold"),
+            corner_radius=RADIUS["pill"]
+        ).grid(row=0, column=8, padx=6)
+
         # Bảng Giao Dịch
         tbl_card = ctk.CTkFrame(
             self,
@@ -181,22 +193,23 @@ class BorrowsView(ctk.CTkFrame):
 
         self.tree = ttk.Treeview(
             tbl_card,
-            columns=("id", "member", "book", "borrow_date", "due_date", "return_date", "status", "fine"),
+            columns=("id", "member", "book", "borrow_date", "due_date", "return_date", "status", "renew", "fine"),
             show="headings"
         )
         cols = [
             ("id", "Mã", 50),
-            ("member", "Độc Giả", 180),
-            ("book", "Tên Sách", 240),
-            ("borrow_date", "Ngày Mượn", 100),
-            ("due_date", "Hạn Trả", 100),
-            ("return_date", "Ngày Trả", 100),
-            ("status", "Trạng Thái", 110),
-            ("fine", "Tiền Phạt", 100)
+            ("member", "Độc Giả", 170),
+            ("book", "Tên Sách", 220),
+            ("borrow_date", "Ngày Mượn", 95),
+            ("due_date", "Hạn Trả", 95),
+            ("return_date", "Ngày Trả", 95),
+            ("status", "Trạng Thái", 100),
+            ("renew", "Gia Hạn", 70),
+            ("fine", "Tiền Phạt", 90)
         ]
         for c, h, w in cols:
             self.tree.heading(c, text=h)
-            self.tree.column(c, width=w, anchor="center" if c in ("id", "borrow_date", "due_date", "return_date", "status", "fine") else "w")
+            self.tree.column(c, width=w, anchor="center" if c in ("id", "borrow_date", "due_date", "return_date", "status", "renew", "fine") else "w")
 
         self.tree.pack(fill="both", expand=True, padx=14, pady=14)
 
@@ -220,8 +233,32 @@ class BorrowsView(ctk.CTkFrame):
                 r["due_date"],
                 r["return_date"] or "-",
                 r["display_status"],
+                f"{r.get('renew_count', 0)}/2",
                 f"{r['fine_amount']:,}đ"
             ))
+
+    def do_renew(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Chọn mục", "Vui lòng chọn phiếu mượn cần gia hạn.")
+            return
+
+        b_id = self.tree.item(sel[0])["values"][0]
+        if not self.controller:
+            self.controller = getattr(self.app, "controllers", {}).get("borrow")
+
+        if not messagebox.askyesno("Gia hạn", f"Gia hạn thêm 7 ngày cho phiếu mượn #{b_id}?"):
+            return
+
+        ok, msg = self.controller.renew_book(b_id, days=7)
+        if not ok:
+            messagebox.showerror("Lỗi gia hạn", msg)
+            return
+
+        messagebox.showinfo("Thành công", msg)
+        self.load_data()
+        if "overdue" in self.app.views:
+            self.app.views["overdue"].load_data()
 
     def do_borrow(self):
         if not self.controller:

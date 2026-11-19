@@ -136,6 +136,19 @@ class MembersView(ctk.CTkFrame):
             command=self.delete_member
         ).grid(row=0, column=7, padx=8)
 
+        ctk.CTkButton(
+            top,
+            text="Lịch Sử Mượn",
+            width=110,
+            height=36,
+            fg_color=THEME["accent_cyan"],
+            hover_color=THEME["accent_cyan_hover"],
+            text_color=THEME["text_white"],
+            font=ctk.CTkFont(size=12, weight="bold"),
+            corner_radius=RADIUS["pill"],
+            command=self.view_member_history
+        ).grid(row=0, column=8, padx=8)
+
         # Bảng dữ liệu bạn đọc
         tbl_card = ctk.CTkFrame(
             self,
@@ -192,6 +205,70 @@ class MembersView(ctk.CTkFrame):
         self.m_phone_var.set("")
         self.load_data()
         self.app.refresh_stats()
+
+    def view_member_history(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Chọn mục", "Vui lòng chọn độc giả cần xem lịch sử.")
+            return
+
+        vals = self.tree.item(sel[0])["values"]
+        m_id, m_name = vals[0], vals[1]
+
+        borrow_ctrl = getattr(self.app, "controllers", {}).get("borrow")
+        if not borrow_ctrl:
+            return
+
+        hist = borrow_ctrl.get_borrows_by_member(m_id)
+
+        # Cửa sổ popup xem lịch sử
+        win = ctk.CTkToplevel(self)
+        win.title(f"Lịch Sử Mượn Trả — Độc Giả #{m_id}: {m_name}")
+        win.geometry("700x420")
+        win.grab_set()
+
+        top_f = ctk.CTkFrame(win, fg_color="transparent")
+        top_f.pack(fill="x", padx=16, pady=12)
+        ctk.CTkLabel(
+            top_f,
+            text=f"Lịch Sử Mượn Trả: {m_name}",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=THEME["text_primary"]
+        ).pack(side="left")
+
+        tbl_f = ctk.CTkFrame(win, fg_color=THEME["card_bg"], corner_radius=RADIUS["card"])
+        tbl_f.pack(fill="both", expand=True, padx=16, pady=(0, 16))
+
+        tree = ttk.Treeview(
+            tbl_f,
+            columns=("id", "book", "borrow_date", "due_date", "return_date", "status", "fine"),
+            show="headings"
+        )
+        h_cols = [
+            ("id", "Mã", 50),
+            ("book", "Tên Sách", 200),
+            ("borrow_date", "Ngày Mượn", 90),
+            ("due_date", "Hạn Trả", 90),
+            ("return_date", "Ngày Trả", 90),
+            ("status", "Trạng Thái", 90),
+            ("fine", "Phạt", 70)
+        ]
+        for c, h, w in h_cols:
+            tree.heading(c, text=h)
+            tree.column(c, width=w, anchor="center" if c != "book" else "w")
+
+        tree.pack(fill="both", expand=True, padx=10, pady=10)
+
+        for h in hist:
+            tree.insert("", "end", values=(
+                h["id"],
+                h["book_title"],
+                h["borrow_date"],
+                h["due_date"],
+                h["return_date"] or "-",
+                h["display_status"],
+                f"{h.get('fine_amount', 0):,}đ"
+            ))
 
     def delete_member(self):
         sel = self.tree.selection()

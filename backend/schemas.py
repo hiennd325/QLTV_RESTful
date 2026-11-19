@@ -99,6 +99,8 @@ class MemberCreate(BaseModel):
 # ==================== Borrow ====================
 class BorrowResponse(BaseModel):
     id: int
+    book_id: Optional[int] = None
+    member_id: Optional[int] = None
     member_name: str
     book_title: str
     borrow_date: str
@@ -106,6 +108,7 @@ class BorrowResponse(BaseModel):
     return_date: Optional[str] = None
     status: str
     fine_amount: int = 0
+    renew_count: Optional[int] = 0
     display_status: str
 
 
@@ -113,6 +116,10 @@ class BorrowCreate(BaseModel):
     member_id: int
     book_id: int
     days: int = Field(default=14, gt=0)
+
+
+class BorrowRenew(BaseModel):
+    days: int = Field(default=7, gt=0, le=30, description="Số ngày gia hạn thêm")
 
 
 class ReturnResponse(BaseModel):
