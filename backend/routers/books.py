@@ -1,13 +1,19 @@
 """
 Books Router — Quản lý sách & thống kê tồn kho
 """
+import os
+import uuid
+import shutil
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from backend.models.book import BookModel
 from backend.schemas import BookResponse, BookCreate, BookUpdate, InventoryStats, MessageResponse
 from backend.dependencies import get_book_model, get_current_user
 
 router = APIRouter(prefix="/api/books", tags=["Books"])
+
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "uploads", "covers")
 
 
 @router.get("", response_model=List[BookResponse])
@@ -65,7 +71,7 @@ def create_book(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vui lòng nhập tên sách và số lượng hợp lệ (lớn hơn 0).")
 
     try:
-        new_id = book_model.add(t, a, c, req.total)
+        new_id = book_model.add(t, a, c, req.total, cover_image=req.cover_image)
         return MessageResponse(success=True, message="Thêm sách thành công.", data={"book_id": new_id})
     except Exception as ex:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Lỗi khi thêm sách: {ex}")
@@ -89,12 +95,63 @@ def update_book(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vui lòng nhập tên sách và số lượng hợp lệ.")
 
     try:
-        book_model.update(book_id, t, a, c, req.total)
+        book_model.update(book_id, t, a, c, req.total, cover_image=req.cover_image)
         return MessageResponse(success=True, message="Cập nhật sách thành công.")
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(ve))
     except Exception as ex:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Lỗi khi cập nhật sách: {ex}")
+
+
+@router.post("/upload-cover", response_model=MessageResponse)
+def upload_cover_image(
+    file: UploadFile = File(...),
+    _: dict = Depends(get_current_user)
+):
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Định dạng ảnh không hợp lệ (hỗ trợ .jpg, .jpeg, .png, .gif, .webp).")
+
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    filename = f"{uuid.uuid4().hex}{ext}"
+    dest_path = os.path.join(UPLOAD_DIR, filename)
+
+    try:
+        with open(dest_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        url_path = f"/uploads/covers/{filename}"
+        return MessageResponse(success=True, message="Tải lên ảnh bìa thành công.", data={"cover_image": url_path})
+    except Exception as ex:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Lỗi khi lưu ảnh bìa: {ex}")
+
+
+@router.post("/{book_id}/cover", response_model=MessageResponse)
+def upload_book_cover(
+    book_id: int,
+    file: UploadFile = File(...),
+    book_model: BookModel = Depends(get_book_model),
+    _: dict = Depends(get_current_user)
+):
+    book = book_model.get_by_id(book_id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy sách với ID: {book_id}")
+
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Định dạng ảnh không hợp lệ (hỗ trợ .jpg, .jpeg, .png, .gif, .webp).")
+
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    filename = f"book_{book_id}_{uuid.uuid4().hex[:8]}{ext}"
+    dest_path = os.path.join(UPLOAD_DIR, filename)
+
+    try:
+        with open(dest_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        url_path = f"/uploads/covers/{filename}"
+        book_model.update_cover(book_id, url_path)
+        return MessageResponse(success=True, message="Cập nhật ảnh bìa sách thành công.", data={"cover_image": url_path})
+    except Exception as ex:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Lỗi khi lưu ảnh: {ex}")
 
 
 @router.delete("/{book_id}", response_model=MessageResponse)

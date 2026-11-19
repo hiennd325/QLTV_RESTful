@@ -133,7 +133,7 @@ class BookAPIController:
         except Exception:
             return []
 
-    def add_book(self, title, author, category, total_str):
+    def add_book(self, title, author, category, total_str, cover_image=None):
         try:
             total = int(total_str)
         except (ValueError, TypeError):
@@ -146,6 +146,8 @@ class BookAPIController:
                 "category": (category or "").strip(),
                 "total": total
             }
+            if cover_image:
+                payload["cover_image"] = cover_image
             r = self.api.request("POST", "/api/books", json=payload)
             if r.status_code in (200, 201):
                 return True, r.json().get("message", "Thêm sách thành công.")
@@ -153,7 +155,7 @@ class BookAPIController:
         except Exception as e:
             return False, f"Lỗi kết nối API: {e}"
 
-    def update_book(self, book_id, title, author, category, total_str):
+    def update_book(self, book_id, title, author, category, total_str, cover_image=None):
         if not book_id:
             return False, "Hãy chọn sách cần cập nhật."
         try:
@@ -168,12 +170,38 @@ class BookAPIController:
                 "category": (category or "").strip(),
                 "total": total
             }
+            if cover_image is not None:
+                payload["cover_image"] = cover_image
             r = self.api.request("PUT", f"/api/books/{book_id}", json=payload)
             if r.status_code == 200:
                 return True, r.json().get("message", "Cập nhật sách thành công.")
             return False, r.json().get("detail", "Lỗi khi cập nhật sách.")
         except Exception as e:
             return False, f"Lỗi kết nối API: {e}"
+
+    def upload_cover(self, file_source, filename="cover.jpg", book_id=None):
+        import os
+        try:
+            if isinstance(file_source, str):
+                filename = os.path.basename(file_source)
+                with open(file_source, "rb") as f:
+                    content = f.read()
+            elif hasattr(file_source, "read"):
+                content = file_source.read()
+            else:
+                content = file_source
+
+            files = {"file": (filename, content)}
+            endpoint = f"/api/books/{book_id}/cover" if book_id else "/api/books/upload-cover"
+            r = self.api.request("POST", endpoint, files=files)
+            if r.status_code in (200, 201):
+                data = r.json()
+                cover_url = data.get("data", {}).get("cover_image") or data.get("cover_image")
+                return True, cover_url, data.get("message", "Tải ảnh thành công.")
+            err = r.json().get("detail", "Lỗi khi tải ảnh bìa.")
+            return False, None, err
+        except Exception as e:
+            return False, None, f"Lỗi kết nối upload ảnh: {e}"
 
     def delete_book(self, book_id):
         if not book_id:

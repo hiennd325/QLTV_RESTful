@@ -108,6 +108,43 @@ class TestLibraryAPI(unittest.TestCase):
         r_up = self.client.put(f"/api/books/{book_id}", json=update_payload, headers=self.staff_headers)
         self.assertEqual(r_up.status_code, 200)
 
+        # 3b. Kiểm tra upload ảnh bìa độc lập
+        fake_img = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4"
+        r_upload = self.client.post(
+            "/api/books/upload-cover",
+            files={"file": ("cover.png", fake_img, "image/png")},
+            headers=self.staff_headers
+        )
+        self.assertEqual(r_upload.status_code, 200)
+        cover_path = r_upload.json()["data"]["cover_image"]
+        self.assertTrue(cover_path.startswith("/uploads/covers/"))
+
+        # Kiểm tra file tĩnh có tải được không
+        r_static = self.client.get(cover_path)
+        self.assertEqual(r_static.status_code, 200)
+
+        # Kiểm tra upload ảnh bìa trực tiếp cho sách
+        r_book_cover = self.client.post(
+            f"/api/books/{book_id}/cover",
+            files={"file": ("book_cover.jpg", fake_img, "image/jpeg")},
+            headers=self.staff_headers
+        )
+        self.assertEqual(r_book_cover.status_code, 200)
+        book_cover_path = r_book_cover.json()["data"]["cover_image"]
+
+        # Kiểm tra chi tiết sách đã có cover_image
+        r_detail = self.client.get(f"/api/books/{book_id}", headers=self.staff_headers)
+        self.assertEqual(r_detail.status_code, 200)
+        self.assertEqual(r_detail.json()["cover_image"], book_cover_path)
+
+        # Kiểm tra định dạng không hợp lệ -> 400
+        r_bad_ext = self.client.post(
+            "/api/books/upload-cover",
+            files={"file": ("bad.exe", b"binary", "application/octet-stream")},
+            headers=self.staff_headers
+        )
+        self.assertEqual(r_bad_ext.status_code, 400)
+
         # 4. Kiểm tra thống kê tồn kho
         r_stats = self.client.get("/api/books/stats/inventory", headers=self.staff_headers)
         self.assertEqual(r_stats.status_code, 200)

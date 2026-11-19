@@ -85,8 +85,14 @@ class TestGUIIntegration(unittest.TestCase):
         books = self.book_ctrl.get_books("Sách GUI Test")
         b_id = books[0]["id"]
 
+        # Upload ảnh bìa qua controller
+        fake_img = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4"
+        ok_up, cov_url, _ = self.book_ctrl.upload_cover(fake_img, filename="gui_cover.png", book_id=b_id)
+        self.assertTrue(ok_up)
+        self.assertTrue(cov_url.startswith("/uploads/covers/"))
+
         # Cập nhật sách
-        ok, msg = self.book_ctrl.update_book(b_id, "Sách GUI Test Đã Sửa", "Tác Giả", "Thể Loại GUI Test", "8")
+        ok, msg = self.book_ctrl.update_book(b_id, "Sách GUI Test Đã Sửa", "Tác Giả", "Thể Loại GUI Test", "8", cover_image=cov_url)
         self.assertTrue(ok, msg)
 
         # Dọn dẹp

@@ -55,6 +55,7 @@ class BookResponse(BaseModel):
     category: str
     total: int
     available: int
+    cover_image: Optional[str] = None
 
 
 class BookCreate(BaseModel):
@@ -62,6 +63,7 @@ class BookCreate(BaseModel):
     author: str = ""
     category: str
     total: int = Field(gt=0)
+    cover_image: Optional[str] = None
 
 
 class BookUpdate(BaseModel):
@@ -69,6 +71,7 @@ class BookUpdate(BaseModel):
     author: str = ""
     category: str
     total: int = Field(gt=0)
+    cover_image: Optional[str] = None
 
 
 class InventoryStats(BaseModel):

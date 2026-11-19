@@ -1,9 +1,11 @@
 """
 Books View — Màn hình Quản Lý Sách
 """
+import io
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import customtkinter as ctk
+from PIL import Image
 
 from client.theme import THEME, RADIUS
 
@@ -13,6 +15,11 @@ class BooksView(ctk.CTkFrame):
         super().__init__(parent, fg_color="transparent")
         self.app = app
         self.controller = controller or getattr(app, "controllers", {}).get("book")
+        self.books_cache = {}
+        self.current_cover_url = None
+        self.selected_local_image = None
+        self._current_ctk_image = None
+        self._cover_cache = {}
         self.setup_ui()
 
     def setup_ui(self):
@@ -85,18 +92,19 @@ class BooksView(ctk.CTkFrame):
         )
         tbl_card.pack(fill="both", expand=True, pady=(0, 16))
 
-        self.tree = ttk.Treeview(tbl_card, columns=("id", "title", "author", "cat", "total", "avail"), show="headings")
+        self.tree = ttk.Treeview(tbl_card, columns=("id", "title", "author", "cat", "total", "avail", "cover"), show="headings")
         cols = [
-            ("id", "ID", 60),
-            ("title", "Tên Sách", 340),
-            ("author", "Tác Giả", 200),
-            ("cat", "Thể Loại", 140),
-            ("total", "Tổng Số", 80),
-            ("avail", "Sẵn Có", 80)
+            ("id", "ID", 50),
+            ("title", "Tên Sách", 320),
+            ("author", "Tác Giả", 180),
+            ("cat", "Thể Loại", 130),
+            ("total", "Tổng Số", 70),
+            ("avail", "Sẵn Có", 70),
+            ("cover", "Ảnh Bìa", 70)
         ]
         for c, h, w in cols:
             self.tree.heading(c, text=h)
-            self.tree.column(c, width=w, anchor="center" if c in ("id", "total", "avail") else "w")
+            self.tree.column(c, width=w, anchor="center" if c in ("id", "total", "avail", "cover") else "w")
 
         self.tree.pack(fill="both", expand=True, padx=14, pady=14)
         self.tree.bind("<<TreeviewSelect>>", self.on_select)
@@ -199,9 +207,53 @@ class BooksView(ctk.CTkFrame):
             text_color=THEME["text_primary"]
         ).grid(row=1, column=3, padx=6, pady=10, sticky="w")
 
+        # Khung tải ảnh bìa sách
+        cover_card = ctk.CTkFrame(form, fg_color="transparent")
+        cover_card.grid(row=0, column=4, rowspan=2, padx=(10, 6), pady=8)
+
+        self.cover_label = ctk.CTkLabel(
+            cover_card,
+            text="Chưa có\nảnh bìa",
+            width=70,
+            height=80,
+            fg_color=THEME["input_bg"],
+            corner_radius=RADIUS["input"],
+            text_color=THEME["text_muted"],
+            font=ctk.CTkFont(size=11)
+        )
+        self.cover_label.pack(side="left", padx=(0, 8))
+
+        cover_btn_box = ctk.CTkFrame(cover_card, fg_color="transparent")
+        cover_btn_box.pack(side="left")
+
+        ctk.CTkButton(
+            cover_btn_box,
+            text="Chọn Ảnh",
+            width=80,
+            height=32,
+            fg_color=THEME["primary"],
+            hover_color=THEME["primary_hover"],
+            font=ctk.CTkFont(size=11, weight="bold"),
+            corner_radius=RADIUS["pill"],
+            command=self.choose_cover_image
+        ).pack(pady=(0, 4))
+
+        ctk.CTkButton(
+            cover_btn_box,
+            text="Bỏ Ảnh",
+            width=80,
+            height=32,
+            fg_color=THEME["btn_secondary"],
+            hover_color=THEME["btn_secondary_hover"],
+            text_color=THEME["btn_secondary_text"],
+            font=ctk.CTkFont(size=11),
+            corner_radius=RADIUS["pill"],
+            command=self.remove_cover_image
+        ).pack()
+
         # Các nút bấm thao tác dạng viên thuốc
         btn_box = ctk.CTkFrame(form, fg_color="transparent")
-        btn_box.grid(row=0, column=4, rowspan=2, padx=20, pady=10)
+        btn_box.grid(row=0, column=5, rowspan=2, padx=(10, 16), pady=10)
 
         ctk.CTkButton(
             btn_box,
@@ -254,6 +306,50 @@ class BooksView(ctk.CTkFrame):
             command=self.clear_form
         ).grid(row=1, column=1, padx=4, pady=4)
 
+    def choose_cover_image(self):
+        filetypes = [("Hình ảnh", "*.png *.jpg *.jpeg *.webp *.gif"), ("Tất cả", "*.*")]
+        fpath = filedialog.askopenfilename(title="Chọn ảnh bìa sách", filetypes=filetypes)
+        if fpath:
+            self.selected_local_image = fpath
+            self.display_cover_image(fpath, is_local=True)
+
+    def remove_cover_image(self):
+        self.selected_local_image = None
+        self.current_cover_url = ""
+        self.display_cover_image(None)
+
+    def display_cover_image(self, img_source, is_local=False):
+        if not img_source:
+            self.cover_label.configure(image=None, text="Chưa có\nảnh bìa")
+            self._current_ctk_image = None
+            return
+
+        if not is_local and img_source in self._cover_cache:
+            self._current_ctk_image = self._cover_cache[img_source]
+            self.cover_label.configure(image=self._current_ctk_image, text="")
+            return
+
+        try:
+            if is_local:
+                pil_img = Image.open(img_source)
+            else:
+                endpoint = img_source if img_source.startswith("/") else f"/{img_source}"
+                r = self.app.api.request("GET", endpoint)
+                if r.status_code == 200:
+                    pil_img = Image.open(io.BytesIO(r.content))
+                else:
+                    self.cover_label.configure(image=None, text="Chưa có\nảnh bìa")
+                    return
+
+            pil_img.thumbnail((70, 80), Image.Resampling.LANCZOS)
+            ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(pil_img.width, pil_img.height))
+            self._current_ctk_image = ctk_img
+            if not is_local:
+                self._cover_cache[img_source] = ctk_img
+            self.cover_label.configure(image=ctk_img, text="")
+        except Exception:
+            self.cover_label.configure(image=None, text="Lỗi ảnh")
+
     def refresh_categories(self):
         cat_ctrl = getattr(self.app, "controllers", {}).get("category")
         cats = cat_ctrl.get_category_names() if cat_ctrl else []
@@ -280,17 +376,21 @@ class BooksView(ctk.CTkFrame):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
+        self.books_cache = {}
         kw = self.b_search_var.get().strip()
         rows = self.controller.get_books(kw)
         for r in rows:
-            self.tree.insert("", "end", values=(r["id"], r["title"], r["author"], r["category"], r["total"], r["available"]))
+            self.books_cache[r["id"]] = r
+            has_cov = "Có" if r.get("cover_image") else "-"
+            self.tree.insert("", "end", values=(r["id"], r["title"], r["author"], r["category"], r["total"], r["available"], has_cov))
 
     def on_select(self, _):
         sel = self.tree.selection()
         if not sel:
             return
         v = self.tree.item(sel[0])["values"]
-        self.b_id_var.set(v[0])
+        b_id = int(v[0])
+        self.b_id_var.set(str(b_id))
         self.b_title_var.set(v[1])
         self.b_author_var.set(v[2])
         cat_val = str(v[3])
@@ -298,11 +398,19 @@ class BooksView(ctk.CTkFrame):
         self.b_cat_combo.set(cat_val)
         self.b_total_var.set(v[4])
 
+        self.selected_local_image = None
+        book = self.books_cache.get(b_id, {})
+        self.current_cover_url = book.get("cover_image")
+        self.display_cover_image(self.current_cover_url)
+
     def clear_form(self):
         self.b_id_var.set("")
         self.b_title_var.set("")
         self.b_author_var.set("")
         self.b_total_var.set("1")
+        self.selected_local_image = None
+        self.current_cover_url = None
+        self.display_cover_image(None)
         if self.tree.selection():
             self.tree.selection_remove(self.tree.selection())
         self.refresh_categories()
@@ -316,11 +424,20 @@ class BooksView(ctk.CTkFrame):
             messagebox.showwarning("Lỗi", "Vui lòng chọn thể loại sách hợp lệ hoặc thêm thể loại tại mục Thể Loại Sách.")
             return
 
+        cover_url = None
+        if self.selected_local_image:
+            ok_up, uploaded_url, up_msg = self.controller.upload_cover(self.selected_local_image)
+            if not ok_up:
+                messagebox.showwarning("Lỗi", f"Tải ảnh bìa thất bại: {up_msg}")
+                return
+            cover_url = uploaded_url
+
         ok, msg = self.controller.add_book(
             self.b_title_var.get(),
             self.b_author_var.get(),
             cat_val,
-            self.b_total_var.get()
+            self.b_total_var.get(),
+            cover_image=cover_url
         )
         if not ok:
             messagebox.showwarning("Lỗi", msg)
@@ -340,12 +457,21 @@ class BooksView(ctk.CTkFrame):
             messagebox.showwarning("Lỗi", "Vui lòng chọn thể loại sách hợp lệ.")
             return
 
+        cover_url = self.current_cover_url
+        if self.selected_local_image:
+            ok_up, uploaded_url, up_msg = self.controller.upload_cover(self.selected_local_image, book_id=b_id)
+            if not ok_up:
+                messagebox.showwarning("Lỗi", f"Tải ảnh bìa thất bại: {up_msg}")
+                return
+            cover_url = uploaded_url
+
         ok, msg = self.controller.update_book(
             b_id,
             self.b_title_var.get(),
             self.b_author_var.get(),
             cat_val,
-            self.b_total_var.get()
+            self.b_total_var.get(),
+            cover_image=cover_url
         )
         if not ok:
             messagebox.showwarning("Lỗi", msg)

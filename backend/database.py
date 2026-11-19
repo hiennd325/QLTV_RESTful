@@ -54,9 +54,13 @@ class Database:
                             author VARCHAR(255) NOT NULL,
                             category VARCHAR(100) NOT NULL,
                             total INT DEFAULT 1,
-                            available INT DEFAULT 1
+                            available INT DEFAULT 1,
+                            cover_image VARCHAR(255) DEFAULT NULL
                         )
                     """)
+                    cur.execute("SHOW COLUMNS FROM books LIKE 'cover_image'")
+                    if not cur.fetchone():
+                        cur.execute("ALTER TABLE books ADD COLUMN cover_image VARCHAR(255) DEFAULT NULL")
                     cur.execute("""
                         CREATE TABLE IF NOT EXISTS members (
                             id INT AUTO_INCREMENT PRIMARY KEY,

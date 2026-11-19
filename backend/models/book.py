@@ -19,17 +19,25 @@ class BookModel:
         rows = self.db.query("SELECT * FROM books WHERE id=%s", (book_id,))
         return rows[0] if rows else None
 
-    def add(self, title, author, category, total):
-        sql = "INSERT INTO books (title, author, category, total, available) VALUES (%s, %s, %s, %s, %s)"
-        return self.db.execute(sql, (title, author, category, total, total))
+    def add(self, title, author, category, total, cover_image=None):
+        sql = "INSERT INTO books (title, author, category, total, available, cover_image) VALUES (%s, %s, %s, %s, %s, %s)"
+        return self.db.execute(sql, (title, author, category, total, total, cover_image))
 
-    def update(self, book_id, title, author, category, total):
+    def update(self, book_id, title, author, category, total, cover_image=None):
         old = self.get_by_id(book_id)
         if not old:
             raise ValueError(f"Không tìm thấy sách với ID: {book_id}")
         new_avail = max(0, old["available"] + (total - old["total"]))
-        sql = "UPDATE books SET title=%s, author=%s, category=%s, total=%s, available=%s WHERE id=%s"
-        return self.db.execute(sql, (title, author, category, total, new_avail, book_id))
+        new_cover = cover_image if cover_image is not None else old.get("cover_image")
+        sql = "UPDATE books SET title=%s, author=%s, category=%s, total=%s, available=%s, cover_image=%s WHERE id=%s"
+        return self.db.execute(sql, (title, author, category, total, new_avail, new_cover, book_id))
+
+    def update_cover(self, book_id, cover_image):
+        old = self.get_by_id(book_id)
+        if not old:
+            raise ValueError(f"Không tìm thấy sách với ID: {book_id}")
+        sql = "UPDATE books SET cover_image=%s WHERE id=%s"
+        return self.db.execute(sql, (cover_image, book_id))
 
     def delete(self, book_id):
         return self.db.execute("DELETE FROM books WHERE id=%s", (book_id,))

@@ -1,9 +1,11 @@
 """
 LibMaster RESTful API Server — Điểm khởi chạy ứng dụng
 """
+import os
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from config import load_config
 from backend.database import Database
 from backend.routers import (
@@ -20,6 +22,10 @@ from backend.routers import (
 
 cfg = load_config()
 
+# Đường dẫn thư mục uploads lưu trữ ảnh bìa sách
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
+os.makedirs(os.path.join(UPLOAD_DIR, "covers"), exist_ok=True)
+
 app = FastAPI(
     title="LibMaster RESTful API",
     description="Hệ thống quản lý thư viện hiện đại cung cấp đầy đủ RESTful API cho Sách, Thể loại, Độc giả, Mượn/Trả, Cảnh báo quá hạn, Người dùng và Báo cáo.",
@@ -27,6 +33,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Phục vụ file tĩnh ảnh bìa tải lên
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # Cấu hình CORS cho phép các ứng dụng Frontend kết nối linh hoạt
 app.add_middleware(

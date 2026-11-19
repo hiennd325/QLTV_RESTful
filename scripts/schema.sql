@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS `books` (
     `author` VARCHAR(255) NOT NULL,
     `category` VARCHAR(100) NOT NULL,
     `total` INT DEFAULT 1,
-    `available` INT DEFAULT 1
+    `available` INT DEFAULT 1,
+    `cover_image` VARCHAR(255) DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS `members` (
