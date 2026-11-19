@@ -2,6 +2,7 @@
 Reports Router — Báo cáo & Phân tích số liệu thống kê & Xuất file Excel/PDF
 """
 import io
+import os
 from datetime import date
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, HTTPException, status
@@ -12,6 +13,23 @@ from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+# Đăng ký font hỗ trợ Tiếng Việt đầy đủ (DejaVu Sans)
+DEJAVU_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+DEJAVU_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+_FONT_FAMILY = "Helvetica"
+_FONT_BOLD = "Helvetica-Bold"
+
+try:
+    if os.path.exists(DEJAVU_REGULAR) and os.path.exists(DEJAVU_BOLD):
+        pdfmetrics.registerFont(TTFont("DejaVuSans", DEJAVU_REGULAR))
+        pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", DEJAVU_BOLD))
+        _FONT_FAMILY = "DejaVuSans"
+        _FONT_BOLD = "DejaVuSans-Bold"
+except Exception:
+    pass
 
 from backend.models.report import ReportModel
 from backend.models.book import BookModel
@@ -191,6 +209,7 @@ def export_pdf(
     title_style = ParagraphStyle(
         'MainTitle',
         parent=styles['Heading1'],
+        fontName=_FONT_BOLD,
         fontSize=18,
         leading=22,
         textColor=colors.HexColor("#1E1B4B"),
@@ -199,6 +218,7 @@ def export_pdf(
     subtitle_style = ParagraphStyle(
         'SubTitle',
         parent=styles['Normal'],
+        fontName=_FONT_FAMILY,
         fontSize=10,
         leading=14,
         textColor=colors.HexColor("#64748B"),
@@ -252,13 +272,13 @@ def export_pdf(
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4F46E5")),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, 0), _FONT_BOLD),
         ('FONTSIZE', (0, 0), (-1, 0), 9),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
         ('TOPPADDING', (0, 0), (-1, 0), 6),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('ALIGN', (1, 1), (2, -1), 'LEFT'),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTNAME', (0, 1), (-1, -1), _FONT_FAMILY),
         ('FONTSIZE', (0, 1), (-1, -1), 8),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
