@@ -17,3 +17,7 @@ ENV/
 
 # Uploads
 uploads/
+
+# Exported Reports
+*.xlsx
+*.pdf
