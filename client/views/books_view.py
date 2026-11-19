@@ -25,7 +25,7 @@ class BooksView(ctk.CTkFrame):
     def setup_ui(self):
         # Header
         header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill="x", pady=(0, 16))
+        header.pack(fill="x", pady=(0, 14))
 
         title_box = ctk.CTkFrame(header, fg_color="transparent")
         title_box.pack(side="left")
@@ -45,8 +45,8 @@ class BooksView(ctk.CTkFrame):
             search_box,
             placeholder_text="Tìm theo ID, Tên sách, Tác giả...",
             textvariable=self.b_search_var,
-            width=270,
-            height=38,
+            width=260,
+            height=36,
             fg_color=THEME["input_bg"],
             border_color=THEME["input_border"],
             border_width=1,
@@ -60,8 +60,8 @@ class BooksView(ctk.CTkFrame):
         ctk.CTkButton(
             search_box,
             text="Tìm Kiếm",
-            width=85,
-            height=38,
+            width=80,
+            height=36,
             fg_color=THEME["primary"],
             hover_color=THEME["primary_hover"],
             font=ctk.CTkFont(size=12, weight="bold"),
@@ -73,7 +73,7 @@ class BooksView(ctk.CTkFrame):
             search_box,
             text="Tất Cả",
             width=70,
-            height=38,
+            height=36,
             fg_color=THEME["btn_secondary"],
             hover_color=THEME["btn_secondary_hover"],
             text_color=THEME["btn_secondary_text"],
@@ -82,99 +82,173 @@ class BooksView(ctk.CTkFrame):
             command=lambda: [self.b_search_var.set(""), self.load_data()]
         ).pack(side="left", padx=3)
 
-        # Thẻ Bảng Dữ Liệu
-        tbl_card = ctk.CTkFrame(
-            self,
+        # Body Frame chia đôi: Cột trái (Danh sách) và Cột phải (Chi tiết & Bìa sách)
+        body = ctk.CTkFrame(self, fg_color="transparent")
+        body.pack(fill="both", expand=True)
+        body.grid_columnconfigure(0, weight=6)  # Bên trái: Danh sách sách
+        body.grid_columnconfigure(1, weight=4)  # Bên phải: Chi tiết sách & Ảnh bìa
+        body.grid_rowconfigure(0, weight=1)
+
+        # --- BÊN TRÁI: DANH SÁCH SÁCH ---
+        left_card = ctk.CTkFrame(
+            body,
             fg_color=THEME["card_bg"],
             corner_radius=RADIUS["card"],
             border_color=THEME["card_border"],
             border_width=1
         )
-        tbl_card.pack(fill="both", expand=True, pady=(0, 16))
+        left_card.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
 
-        self.tree = ttk.Treeview(tbl_card, columns=("id", "title", "author", "cat", "total", "avail", "cover"), show="headings")
+        # Tiêu đề bảng bên trái
+        tbl_header = ctk.CTkFrame(left_card, fg_color="transparent")
+        tbl_header.pack(fill="x", padx=14, pady=(12, 6))
+        ctk.CTkLabel(
+            tbl_header,
+            text="Danh Sách Sách",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=THEME["text_primary"]
+        ).pack(side="left")
+
+        self.tree = ttk.Treeview(left_card, columns=("id", "title", "author", "cat", "total", "avail", "cover"), show="headings")
         cols = [
-            ("id", "ID", 50),
-            ("title", "Tên Sách", 320),
-            ("author", "Tác Giả", 180),
-            ("cat", "Thể Loại", 130),
-            ("total", "Tổng Số", 70),
-            ("avail", "Sẵn Có", 70),
-            ("cover", "Ảnh Bìa", 70)
+            ("id", "ID", 45),
+            ("title", "Tên Sách", 180),
+            ("author", "Tác Giả", 120),
+            ("cat", "Thể Loại", 100),
+            ("total", "Tổng", 50),
+            ("avail", "Sẵn", 50),
+            ("cover", "Bìa", 45)
         ]
         for c, h, w in cols:
             self.tree.heading(c, text=h)
             self.tree.column(c, width=w, anchor="center" if c in ("id", "total", "avail", "cover") else "w")
 
-        self.tree.pack(fill="both", expand=True, padx=14, pady=14)
+        self.tree.pack(fill="both", expand=True, padx=12, pady=(0, 12))
         self.tree.bind("<<TreeviewSelect>>", self.on_select)
 
-        # Thẻ Form Thêm / Sửa
-        form = ctk.CTkFrame(
-            self,
+        # --- BÊN PHẢI: CHI TIẾT SÁCH & FORM ---
+        right_card = ctk.CTkScrollableFrame(
+            body,
             fg_color=THEME["card_bg"],
             corner_radius=RADIUS["card"],
             border_color=THEME["card_border"],
             border_width=1
         )
-        form.pack(fill="x")
+        right_card.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
 
+        # Tiêu đề bên phải
+        right_header = ctk.CTkFrame(right_card, fg_color="transparent")
+        right_header.pack(fill="x", pady=(4, 10))
+        ctk.CTkLabel(
+            right_header,
+            text="Chi Tiết & Thông Tin Sách",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=THEME["text_primary"]
+        ).pack(side="left")
+
+        # Khung hiển thị Ảnh bìa lớn ở trung tâm
+        cover_container = ctk.CTkFrame(right_card, fg_color="transparent")
+        cover_container.pack(fill="x", pady=(0, 12))
+
+        self.cover_label = ctk.CTkLabel(
+            cover_container,
+            text="Chưa có ảnh bìa\n(Chọn sách hoặc bấm Chọn Ảnh)",
+            width=160,
+            height=200,
+            fg_color=THEME["input_bg"],
+            corner_radius=RADIUS["input"],
+            text_color=THEME["text_muted"],
+            font=ctk.CTkFont(size=12)
+        )
+        self.cover_label.pack(pady=(0, 8))
+
+        cover_action_box = ctk.CTkFrame(cover_container, fg_color="transparent")
+        cover_action_box.pack()
+
+        ctk.CTkButton(
+            cover_action_box,
+            text="Chọn Ảnh",
+            width=90,
+            height=30,
+            fg_color=THEME["primary"],
+            hover_color=THEME["primary_hover"],
+            font=ctk.CTkFont(size=11, weight="bold"),
+            corner_radius=RADIUS["pill"],
+            command=self.choose_cover_image
+        ).pack(side="left", padx=4)
+
+        ctk.CTkButton(
+            cover_action_box,
+            text="Bỏ Ảnh",
+            width=80,
+            height=30,
+            fg_color=THEME["btn_secondary"],
+            hover_color=THEME["btn_secondary_hover"],
+            text_color=THEME["btn_secondary_text"],
+            font=ctk.CTkFont(size=11),
+            corner_radius=RADIUS["pill"],
+            command=self.remove_cover_image
+        ).pack(side="left", padx=4)
+
+        # Form điền thông tin chi tiết
         self.b_id_var, self.b_title_var = tk.StringVar(), tk.StringVar()
         self.b_author_var, self.b_cat_var, self.b_total_var = tk.StringVar(), tk.StringVar(), tk.StringVar(value="1")
 
-        # Tên sách:
+        form_fields = ctk.CTkFrame(right_card, fg_color="transparent")
+        form_fields.pack(fill="x", padx=6, pady=4)
+
+        # Tên sách
         ctk.CTkLabel(
-            form,
+            form_fields,
             text="Tên sách:",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=12, weight="bold"),
             text_color=THEME["text_secondary"]
-        ).grid(row=0, column=0, padx=14, pady=10, sticky="e")
+        ).pack(anchor="w", pady=(4, 2))
 
         ctk.CTkEntry(
-            form,
+            form_fields,
             textvariable=self.b_title_var,
-            width=260,
             height=34,
             fg_color=THEME["input_bg"],
             border_color=THEME["input_border"],
             border_width=1,
             corner_radius=RADIUS["input"],
-            text_color=THEME["text_primary"]
-        ).grid(row=0, column=1, padx=6, pady=10, sticky="w")
+            text_color=THEME["text_primary"],
+            placeholder_text="Nhập tên sách..."
+        ).pack(fill="x", pady=(0, 8))
 
-        # Tác giả:
+        # Tác giả
         ctk.CTkLabel(
-            form,
+            form_fields,
             text="Tác giả:",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=12, weight="bold"),
             text_color=THEME["text_secondary"]
-        ).grid(row=0, column=2, padx=14, pady=10, sticky="e")
+        ).pack(anchor="w", pady=(2, 2))
 
         ctk.CTkEntry(
-            form,
+            form_fields,
             textvariable=self.b_author_var,
-            width=200,
             height=34,
             fg_color=THEME["input_bg"],
             border_color=THEME["input_border"],
             border_width=1,
             corner_radius=RADIUS["input"],
-            text_color=THEME["text_primary"]
-        ).grid(row=0, column=3, padx=6, pady=10, sticky="w")
+            text_color=THEME["text_primary"],
+            placeholder_text="Nhập tên tác giả..."
+        ).pack(fill="x", pady=(0, 8))
 
-        # Thể loại (chọn từ danh sách đã thêm, không nhập tự do)
+        # Thể loại
         ctk.CTkLabel(
-            form,
+            form_fields,
             text="Thể loại:",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=12, weight="bold"),
             text_color=THEME["text_secondary"]
-        ).grid(row=1, column=0, padx=14, pady=10, sticky="e")
+        ).pack(anchor="w", pady=(2, 2))
 
         self.b_cat_combo = ctk.CTkComboBox(
-            form,
+            form_fields,
             variable=self.b_cat_var,
             values=["(Chưa có thể loại)"],
-            width=260,
             height=34,
             state="readonly",
             fg_color=THEME["input_bg"],
@@ -185,126 +259,78 @@ class BooksView(ctk.CTkFrame):
             button_color=THEME["primary"],
             button_hover_color=THEME["primary_hover"]
         )
-        self.b_cat_combo.grid(row=1, column=1, padx=6, pady=10, sticky="w")
+        self.b_cat_combo.pack(fill="x", pady=(0, 8))
 
-        # Số lượng:
+        # Số lượng
         ctk.CTkLabel(
-            form,
+            form_fields,
             text="Số lượng:",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=12, weight="bold"),
             text_color=THEME["text_secondary"]
-        ).grid(row=1, column=2, padx=14, pady=10, sticky="e")
+        ).pack(anchor="w", pady=(2, 2))
 
         ctk.CTkEntry(
-            form,
+            form_fields,
             textvariable=self.b_total_var,
-            width=200,
             height=34,
             fg_color=THEME["input_bg"],
             border_color=THEME["input_border"],
             border_width=1,
             corner_radius=RADIUS["input"],
             text_color=THEME["text_primary"]
-        ).grid(row=1, column=3, padx=6, pady=10, sticky="w")
+        ).pack(fill="x", pady=(0, 14))
 
-        # Khung tải ảnh bìa sách
-        cover_card = ctk.CTkFrame(form, fg_color="transparent")
-        cover_card.grid(row=0, column=4, rowspan=2, padx=(10, 6), pady=8)
-
-        self.cover_label = ctk.CTkLabel(
-            cover_card,
-            text="Chưa có\nảnh bìa",
-            width=70,
-            height=80,
-            fg_color=THEME["input_bg"],
-            corner_radius=RADIUS["input"],
-            text_color=THEME["text_muted"],
-            font=ctk.CTkFont(size=11)
-        )
-        self.cover_label.pack(side="left", padx=(0, 8))
-
-        cover_btn_box = ctk.CTkFrame(cover_card, fg_color="transparent")
-        cover_btn_box.pack(side="left")
+        # Các nút bấm hành động dạng Grid / Wrap
+        btn_grid = ctk.CTkFrame(right_card, fg_color="transparent")
+        btn_grid.pack(fill="x", pady=(0, 8))
+        btn_grid.grid_columnconfigure((0, 1), weight=1)
 
         ctk.CTkButton(
-            cover_btn_box,
-            text="Chọn Ảnh",
-            width=80,
-            height=32,
-            fg_color=THEME["primary"],
-            hover_color=THEME["primary_hover"],
-            font=ctk.CTkFont(size=11, weight="bold"),
-            corner_radius=RADIUS["pill"],
-            command=self.choose_cover_image
-        ).pack(pady=(0, 4))
-
-        ctk.CTkButton(
-            cover_btn_box,
-            text="Bỏ Ảnh",
-            width=80,
-            height=32,
-            fg_color=THEME["btn_secondary"],
-            hover_color=THEME["btn_secondary_hover"],
-            text_color=THEME["btn_secondary_text"],
-            font=ctk.CTkFont(size=11),
-            corner_radius=RADIUS["pill"],
-            command=self.remove_cover_image
-        ).pack()
-
-        # Các nút bấm thao tác dạng viên thuốc
-        btn_box = ctk.CTkFrame(form, fg_color="transparent")
-        btn_box.grid(row=0, column=5, rowspan=2, padx=(10, 16), pady=10)
-
-        ctk.CTkButton(
-            btn_box,
+            btn_grid,
             text="Thêm Mới",
-            width=100,
-            height=34,
+            height=36,
             fg_color=THEME["primary"],
             hover_color=THEME["primary_hover"],
             font=ctk.CTkFont(size=12, weight="bold"),
             corner_radius=RADIUS["pill"],
             command=self.add_book
-        ).grid(row=0, column=0, padx=4, pady=4)
+        ).grid(row=0, column=0, padx=4, pady=4, sticky="ew")
 
         ctk.CTkButton(
-            btn_box,
+            btn_grid,
             text="Cập Nhật",
-            width=100,
-            height=34,
+            height=36,
             fg_color=THEME["accent_orange"],
             hover_color=THEME["accent_orange_hover"],
             text_color=THEME["text_white"],
             font=ctk.CTkFont(size=12, weight="bold"),
             corner_radius=RADIUS["pill"],
             command=self.update_book
-        ).grid(row=0, column=1, padx=4, pady=4)
+        ).grid(row=0, column=1, padx=4, pady=4, sticky="ew")
 
         ctk.CTkButton(
-            btn_box,
-            text="Xóa",
-            width=100,
-            height=34,
+            btn_grid,
+            text="Xóa Sách",
+            height=36,
             fg_color=THEME["accent_red"],
             hover_color=THEME["accent_red_hover"],
             text_color=THEME["text_white"],
             font=ctk.CTkFont(size=12, weight="bold"),
             corner_radius=RADIUS["pill"],
             command=self.delete_book
-        ).grid(row=1, column=0, padx=4, pady=4)
+        ).grid(row=1, column=0, padx=4, pady=4, sticky="ew")
 
         ctk.CTkButton(
-            btn_box,
+            btn_grid,
             text="Làm Mới",
-            width=100,
-            height=34,
+            height=36,
             fg_color=THEME["btn_secondary"],
             hover_color=THEME["btn_secondary_hover"],
             text_color=THEME["btn_secondary_text"],
             font=ctk.CTkFont(size=12),
             corner_radius=RADIUS["pill"],
             command=self.clear_form
-        ).grid(row=1, column=1, padx=4, pady=4)
+        ).grid(row=1, column=1, padx=4, pady=4, sticky="ew")
 
     def choose_cover_image(self):
         filetypes = [("Hình ảnh", "*.png *.jpg *.jpeg *.webp *.gif"), ("Tất cả", "*.*")]
@@ -320,7 +346,7 @@ class BooksView(ctk.CTkFrame):
 
     def display_cover_image(self, img_source, is_local=False):
         if not img_source:
-            self.cover_label.configure(image=None, text="Chưa có\nảnh bìa")
+            self.cover_label.configure(image=None, text="Chưa có ảnh bìa\n(Chọn sách hoặc bấm Chọn Ảnh)")
             self._current_ctk_image = None
             return
 
@@ -338,17 +364,17 @@ class BooksView(ctk.CTkFrame):
                 if r.status_code == 200:
                     pil_img = Image.open(io.BytesIO(r.content))
                 else:
-                    self.cover_label.configure(image=None, text="Chưa có\nảnh bìa")
+                    self.cover_label.configure(image=None, text="Chưa có ảnh bìa\n(Chọn sách hoặc bấm Chọn Ảnh)")
                     return
 
-            pil_img.thumbnail((70, 80), Image.Resampling.LANCZOS)
+            pil_img.thumbnail((160, 200), Image.Resampling.LANCZOS)
             ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(pil_img.width, pil_img.height))
             self._current_ctk_image = ctk_img
             if not is_local:
                 self._cover_cache[img_source] = ctk_img
             self.cover_label.configure(image=ctk_img, text="")
         except Exception:
-            self.cover_label.configure(image=None, text="Lỗi ảnh")
+            self.cover_label.configure(image=None, text="Lỗi hiển thị ảnh bìa")
 
     def refresh_categories(self):
         cat_ctrl = getattr(self.app, "controllers", {}).get("category")
