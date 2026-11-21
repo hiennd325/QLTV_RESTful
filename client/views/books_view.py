@@ -20,6 +20,8 @@ class BooksView(ctk.CTkFrame):
         self.selected_local_image = None
         self._current_ctk_image = None
         self._cover_cache = {}
+        _empty_pil = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+        self._empty_ctk_image = ctk.CTkImage(light_image=_empty_pil, dark_image=_empty_pil, size=(1, 1))
         self.setup_ui()
 
     def setup_ui(self):
@@ -373,8 +375,10 @@ class BooksView(ctk.CTkFrame):
 
     def display_cover_image(self, img_source, is_local=False):
         if not img_source:
-            self.cover_label.configure(image=None, text="Chưa có ảnh bìa\n(Chọn sách hoặc bấm Chọn Ảnh)")
             self._current_ctk_image = None
+            if hasattr(self.cover_label, "_label"):
+                self.cover_label._label.configure(image="")
+            self.cover_label.configure(image=self._empty_ctk_image, text="Chưa có ảnh bìa\n(Chọn sách hoặc bấm Chọn Ảnh)")
             return
 
         if not is_local and img_source in self._cover_cache:
@@ -391,7 +395,10 @@ class BooksView(ctk.CTkFrame):
                 if r.status_code == 200:
                     pil_img = Image.open(io.BytesIO(r.content))
                 else:
-                    self.cover_label.configure(image=None, text="Chưa có ảnh bìa\n(Chọn sách hoặc bấm Chọn Ảnh)")
+                    self._current_ctk_image = None
+                    if hasattr(self.cover_label, "_label"):
+                        self.cover_label._label.configure(image="")
+                    self.cover_label.configure(image=self._empty_ctk_image, text="Chưa có ảnh bìa\n(Chọn sách hoặc bấm Chọn Ảnh)")
                     return
 
             pil_img.thumbnail((160, 200), Image.Resampling.LANCZOS)
@@ -401,7 +408,10 @@ class BooksView(ctk.CTkFrame):
                 self._cover_cache[img_source] = ctk_img
             self.cover_label.configure(image=ctk_img, text="")
         except Exception:
-            self.cover_label.configure(image=None, text="Lỗi hiển thị ảnh bìa")
+            self._current_ctk_image = None
+            if hasattr(self.cover_label, "_label"):
+                self.cover_label._label.configure(image="")
+            self.cover_label.configure(image=self._empty_ctk_image, text="Lỗi hiển thị ảnh bìa")
 
     def refresh_categories(self):
         cat_ctrl = getattr(self.app, "controllers", {}).get("category")

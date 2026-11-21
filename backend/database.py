@@ -98,9 +98,13 @@ class Database:
                             username VARCHAR(50) NOT NULL UNIQUE,
                             password_hash VARCHAR(255) NOT NULL,
                             full_name VARCHAR(100) NOT NULL,
-                            role VARCHAR(20) NOT NULL DEFAULT 'staff'
+                            role VARCHAR(20) NOT NULL DEFAULT 'staff',
+                            is_locked TINYINT(1) DEFAULT 0
                         )
                     """)
+                    cur.execute("SHOW COLUMNS FROM users LIKE 'is_locked'")
+                    if not cur.fetchone():
+                        cur.execute("ALTER TABLE users ADD COLUMN is_locked TINYINT(1) DEFAULT 0")
                     # Khởi tạo tài khoản mặc định nếu bảng users trống
                     cur.execute("SELECT COUNT(*) as c FROM users")
                     if cur.fetchone()[0] == 0:

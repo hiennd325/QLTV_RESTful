@@ -218,6 +218,20 @@ class UsersView(ctk.CTkFrame):
             command=self.delete_user
         ).pack(side="left", padx=4)
 
+        self.btn_toggle_lock = ctk.CTkButton(
+            btn_box,
+            text="Khóa / Mở Khóa",
+            width=125,
+            height=36,
+            fg_color=THEME["btn_secondary"],
+            hover_color=THEME["btn_secondary_hover"],
+            text_color=THEME["text_primary"],
+            font=ctk.CTkFont(size=12, weight="bold"),
+            corner_radius=RADIUS["pill"],
+            command=self.toggle_lock_user
+        )
+        self.btn_toggle_lock.pack(side="left", padx=4)
+
         ctk.CTkButton(
             btn_box,
             text="Làm Mới",
@@ -241,18 +255,21 @@ class UsersView(ctk.CTkFrame):
         )
         tbl_card.pack(fill="both", expand=True)
 
-        self.tree = ttk.Treeview(tbl_card, columns=("id", "username", "fullname", "role"), show="headings")
+        self.tree = ttk.Treeview(tbl_card, columns=("id", "username", "fullname", "role", "status"), show="headings")
         cols = [
-            ("id", "Mã", 80),
-            ("username", "Tên Đăng Nhập", 200),
-            ("fullname", "Họ Và Tên", 320),
-            ("role", "Quyền Hạn", 160)
+            ("id", "Mã", 70),
+            ("username", "Tên Đăng Nhập", 180),
+            ("fullname", "Họ Và Tên", 260),
+            ("role", "Quyền Hạn", 150),
+            ("status", "Trạng Thái", 130)
         ]
         for c, h, w in cols:
             self.tree.heading(c, text=h)
-            self.tree.column(c, width=w, anchor="center" if c in ("id", "role") else "w")
+            self.tree.column(c, width=w, anchor="center" if c in ("id", "role", "status") else "w")
 
         self.tree.pack(fill="both", expand=True, padx=14, pady=14)
+        self.tree.tag_configure("status_active", foreground="#16A34A")
+        self.tree.tag_configure("status_locked", foreground="#DC2626")
         self.tree.bind("<<TreeviewSelect>>", self.on_select)
 
     def _on_role_change(self, val):
@@ -274,7 +291,10 @@ class UsersView(ctk.CTkFrame):
         users = self.controller.get_users(kw)
         for u in users:
             role_label = "Quản trị viên (Admin)" if u["role"] == "admin" else "Nhân viên"
-            self.tree.insert("", "end", values=(u["id"], u["username"], u["full_name"], role_label))
+            is_locked = bool(u.get("is_locked"))
+            status_label = "Đã khóa" if is_locked else "●"
+            tag = "status_locked" if is_locked else "status_active"
+            self.tree.insert("", "end", values=(u["id"], u["username"], u["full_name"], role_label, status_label), tags=(tag,))
 
     def on_select(self, _):
         sel = self.tree.selection()
@@ -295,6 +315,11 @@ class UsersView(ctk.CTkFrame):
             self.role_menu.set("Nhân viên")
             self.u_role_var.set("staff")
 
+        if len(v) > 4 and str(v[4]) == "Đã khóa":
+            self.btn_toggle_lock.configure(text="Mở Khóa Tài Khoản")
+        else:
+            self.btn_toggle_lock.configure(text="Khóa Tài Khoản")
+
     def clear_form(self):
         self.u_id_var.set("")
         self.u_username_var.set("")
@@ -304,6 +329,7 @@ class UsersView(ctk.CTkFrame):
         self.u_fullname_var.set("")
         self.role_menu.set("Nhân viên")
         self.u_role_var.set("staff")
+        self.btn_toggle_lock.configure(text="Khóa / Mở Khóa")
         if self.tree.selection():
             self.tree.selection_remove(self.tree.selection())
 
@@ -372,6 +398,35 @@ class UsersView(ctk.CTkFrame):
         ok, msg = self.controller.delete_user(uid, current_user_id=current_user_id)
         if not ok:
             messagebox.showerror("Không thể xóa", msg)
+            return
+
+        messagebox.showinfo("Thành công", msg)
+        self.clear_form()
+        self.load_data()
+
+    def toggle_lock_user(self):
+        if not self.controller:
+            self.controller = getattr(self.app, "controllers", {}).get("user")
+
+        uid = self.u_id_var.get()
+        if not uid:
+            messagebox.showwarning("Chọn mục", "Vui lòng chọn người dùng cần khóa/mở khóa từ danh sách.")
+            return
+
+        sel = self.tree.selection()
+        if not sel:
+            return
+        vals = self.tree.item(sel[0])["values"]
+        is_currently_locked = (len(vals) > 4 and str(vals[4]) == "Đã khóa")
+        target_locked = not is_currently_locked
+        action_word = "mở khóa" if is_currently_locked else "khóa"
+
+        if not messagebox.askyesno("Xác nhận", f"Bạn có chắc chắn muốn {action_word} tài khoản '{self.u_username_var.get()}'?"):
+            return
+
+        ok, msg = self.controller.toggle_user_lock(uid, target_locked)
+        if not ok:
+            messagebox.showerror("Thao tác thất bại", msg)
             return
 
         messagebox.showinfo("Thành công", msg)

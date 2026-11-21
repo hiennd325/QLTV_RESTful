@@ -17,6 +17,7 @@ class UserResponse(BaseModel):
     username: str
     full_name: str
     role: str
+    is_locked: bool = False
 
 
 class UserCreate(BaseModel):
@@ -24,12 +25,18 @@ class UserCreate(BaseModel):
     password: str
     full_name: str
     role: str = "staff"
+    is_locked: bool = False
 
 
 class UserUpdate(BaseModel):
     full_name: str
     role: str
     password: Optional[str] = None
+    is_locked: Optional[bool] = None
+
+
+class UserLockRequest(BaseModel):
+    is_locked: bool
 
 
 # ==================== Category ====================

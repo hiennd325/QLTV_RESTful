@@ -99,6 +99,7 @@ python -m unittest discover tests
 | `GET` | `/api/users/{id}` | Chi tiết người dùng | Admin |
 | `POST` | `/api/users` | Tạo tài khoản người dùng | Admin |
 | `PUT` | `/api/users/{id}` | Cập nhật thông tin & mật khẩu | Admin |
+| `PUT` | `/api/users/{id}/lock` | Khóa hoặc mở khóa tài khoản | Admin |
 | `DELETE` | `/api/users/{id}` | Xóa tài khoản người dùng | Admin |
 
 ### 📚 Sách (Books)

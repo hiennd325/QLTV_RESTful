@@ -17,6 +17,8 @@ THEME = {
     "card_bg": "#FFFFFF",
     "card_border": "#E2E8F0",
     "card_inner": "#F1F5F9",
+    "surface": "#FFFFFF",
+    "surface_hover": "#E2E8F0",
 
     # Ô nhập liệu (Input & Search)
     "input_bg": "#FFFFFF",

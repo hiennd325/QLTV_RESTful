@@ -308,8 +308,28 @@ class TestLibraryAPI(unittest.TestCase):
         }, headers=self.admin_headers)
         self.assertEqual(r_up.status_code, 200)
 
-        # 6. Admin tự xóa chính mình -> 400
+        # 5.1. Admin tự khóa chính mình -> 400
         admin_info = self.client.get("/api/auth/me", headers=self.admin_headers).json()
+        r_lock_self = self.client.put(f"/api/users/{admin_info['id']}/lock", json={"is_locked": True}, headers=self.admin_headers)
+        self.assertEqual(r_lock_self.status_code, 400)
+
+        # 5.2. Khóa tài khoản user mới -> 200
+        r_lock = self.client.put(f"/api/users/{new_uid}/lock", json={"is_locked": True}, headers=self.admin_headers)
+        self.assertEqual(r_lock.status_code, 200)
+
+        # 5.3. Tài khoản bị khóa đăng nhập -> 403
+        r_login_locked = self.client.post("/api/auth/login", json={"username": "api_new_staff", "password": "new_staff_pass"})
+        self.assertEqual(r_login_locked.status_code, 403)
+
+        # 5.4. Mở khóa tài khoản -> 200
+        r_unlock = self.client.put(f"/api/users/{new_uid}/lock", json={"is_locked": False}, headers=self.admin_headers)
+        self.assertEqual(r_unlock.status_code, 200)
+
+        # 5.5. Đăng nhập lại sau khi mở khóa -> 200
+        r_login_unlocked = self.client.post("/api/auth/login", json={"username": "api_new_staff", "password": "new_staff_pass"})
+        self.assertEqual(r_login_unlocked.status_code, 200)
+
+        # 6. Admin tự xóa chính mình -> 400
         r_del_self = self.client.delete(f"/api/users/{admin_info['id']}", headers=self.admin_headers)
         self.assertEqual(r_del_self.status_code, 400)
 

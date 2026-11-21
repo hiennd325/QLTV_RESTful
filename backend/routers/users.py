@@ -4,7 +4,7 @@ Users Router — Quản trị người dùng & phân quyền (Chỉ dành cho Ad
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from backend.models.user import UserModel
-from backend.schemas import UserResponse, UserCreate, UserUpdate, MessageResponse
+from backend.schemas import UserResponse, UserCreate, UserUpdate, UserLockRequest, MessageResponse
 from backend.dependencies import get_user_model, require_admin
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
@@ -59,7 +59,7 @@ def create_user(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Tên đăng nhập '{u}' đã tồn tại.")
 
     try:
-        new_id = user_model.add(u, p, fn, r)
+        new_id = user_model.add(u, p, fn, r, is_locked=req.is_locked)
         return MessageResponse(success=True, message="Thêm người dùng thành công.", data={"user_id": new_id})
     except Exception as ex:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Lỗi khi thêm người dùng: {ex}")
@@ -70,7 +70,7 @@ def update_user(
     user_id: int,
     req: UserUpdate,
     user_model: UserModel = Depends(get_user_model),
-    _: dict = Depends(require_admin)
+    current_user: dict = Depends(require_admin)
 ):
     fn = req.full_name.strip()
     r = req.role.strip().lower()
@@ -94,11 +94,46 @@ def update_user(
         if user_model.count_admins() <= 1:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không thể chuyển quyền admin cuối cùng trong hệ thống.")
 
+    # Bảo vệ khi cập nhật trạng thái khóa
+    if req.is_locked is not None and req.is_locked:
+        if user_id == current_user["id"]:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không thể tự khóa tài khoản của chính mình.")
+        if user["role"] == "admin" and user_model.count_active_admins() <= 1:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không thể khóa tài khoản quản trị viên duy nhất đang hoạt động.")
+
     try:
-        user_model.update(user_id, fn, r, p)
+        user_model.update(user_id, fn, r, p, is_locked=req.is_locked)
         return MessageResponse(success=True, message="Cập nhật người dùng thành công.")
     except Exception as ex:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Lỗi khi cập nhật người dùng: {ex}")
+
+
+@router.put("/{user_id}/lock", response_model=MessageResponse)
+def toggle_user_lock(
+    user_id: int,
+    req: UserLockRequest,
+    user_model: UserModel = Depends(get_user_model),
+    current_user: dict = Depends(require_admin)
+):
+    if user_id == current_user["id"] and req.is_locked:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Không thể tự khóa tài khoản của chính mình."
+        )
+
+    target = user_model.get_by_id(user_id)
+    if not target:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy người dùng.")
+
+    if target["role"] == "admin" and req.is_locked and user_model.count_active_admins() <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Không thể khóa tài khoản quản trị viên duy nhất đang hoạt động."
+        )
+
+    user_model.set_lock_status(user_id, req.is_locked)
+    action = "Khóa" if req.is_locked else "Mở khóa"
+    return MessageResponse(success=True, message=f"{action} tài khoản thành công.")
 
 
 @router.delete("/{user_id}", response_model=MessageResponse)

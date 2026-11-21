@@ -115,6 +115,15 @@ class UserAPIController:
         except Exception as e:
             return False, f"Lỗi kết nối API: {e}"
 
+    def toggle_user_lock(self, user_id, is_locked):
+        try:
+            r = self.api.request("PUT", f"/api/users/{user_id}/lock", json={"is_locked": is_locked})
+            if r.status_code == 200:
+                return True, r.json().get("message", "Cập nhật trạng thái khóa thành công.")
+            return False, r.json().get("detail", "Lỗi khi cập nhật trạng thái khóa.")
+        except Exception as e:
+            return False, f"Lỗi kết nối API: {e}"
+
 
 # ==============================================================================
 # 2. Book API Controller
@@ -361,9 +370,16 @@ class BorrowAPIController:
         try:
             m_id = int(str(member_id_str).strip())
             b_id = int(str(book_id_str).strip())
-            days = int(str(days_str).strip().split()[0])
-        except (ValueError, IndexError, AttributeError):
+        except (ValueError, AttributeError):
             return False, "Vui lòng nhập đúng ID độc giả và ID sách (dạng số)."
+
+        try:
+            val_clean = str(days_str).strip().split()[0]
+            days = int(val_clean)
+            if days <= 0:
+                return False, "Thời hạn mượn (số ngày) phải lớn hơn 0."
+        except (ValueError, IndexError, AttributeError):
+            return False, "Thời hạn mượn không hợp lệ. Vui lòng nhập số ngày hợp lệ."
 
         try:
             payload = {"member_id": m_id, "book_id": b_id, "days": days}

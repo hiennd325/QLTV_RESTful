@@ -92,6 +92,13 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if user.get("is_locked"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tài khoản này đã bị khóa. Vui lòng liên hệ Quản trị viên.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     return user
 
 

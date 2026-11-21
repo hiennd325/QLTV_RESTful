@@ -28,6 +28,12 @@ def login(req: LoginRequest, user_model: UserModel = Depends(get_user_model)):
             detail="Tên đăng nhập hoặc mật khẩu không chính xác."
         )
 
+    if user.get("is_locked"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tài khoản này đã bị khóa. Vui lòng liên hệ Quản trị viên."
+        )
+
     token = create_token({
         "id": user["id"],
         "username": user["username"],

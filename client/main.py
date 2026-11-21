@@ -49,6 +49,9 @@ class ModernLibraryApp(ctk.CTk):
         ctk.set_default_color_theme("blue")
         self.configure(fg_color=THEME["bg_window"])
 
+        # Ẩn cửa sổ trước khi chuẩn bị xong UI để tránh chớp màn hình Dashboard
+        self.withdraw()
+
         self.style_tables()
         self.init_controllers()
         self.setup_layout()
@@ -59,6 +62,9 @@ class ModernLibraryApp(ctk.CTk):
             self.show_api_error_screen(err_msg)
         else:
             self.show_login_screen()
+
+        # Hiển thị cửa sổ ngay lập tức tại màn hình đăng nhập
+        self.deiconify()
 
     def style_tables(self):
         style = ttk.Style()
@@ -177,7 +183,7 @@ class ModernLibraryApp(ctk.CTk):
             border_color=THEME["card_border"],
             border_width=1
         )
-        self.user_card.pack(fill="x", pady=(0, 10))
+        self.user_card.pack(fill="x")
 
         u_top = ctk.CTkFrame(self.user_card, fg_color="transparent")
         u_top.pack(fill="x", padx=10, pady=(8, 2))
@@ -188,14 +194,14 @@ class ModernLibraryApp(ctk.CTk):
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color=THEME["text_primary"]
         )
-        self.user_name_lbl.pack(side="left")
+        self.user_name_lbl.pack(anchor="center")
 
         self.user_role_badge = ctk.CTkLabel(
             u_top,
             text="",
-            font=ctk.CTkFont(size=9, weight="bold")
+            font=ctk.CTkFont(size=10, weight="bold")
         )
-        self.user_role_badge.pack(side="right")
+        self.user_role_badge.pack(anchor="center", pady=(2, 0))
 
         self.logout_btn = ctk.CTkButton(
             self.user_card,
@@ -209,24 +215,6 @@ class ModernLibraryApp(ctk.CTk):
             command=self.logout
         )
         self.logout_btn.pack(fill="x", padx=10, pady=(4, 8))
-
-        # Thẻ trạng thái REST API
-        api_card = ctk.CTkFrame(
-            footer,
-            fg_color=THEME["card_inner"],
-            corner_radius=RADIUS["card_sm"],
-            border_color=THEME["card_border"],
-            border_width=1
-        )
-        api_card.pack(fill="x")
-
-        self.api_badge = ctk.CTkLabel(
-            api_card,
-            text=f"API: {self.api.base_url}",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=THEME["accent_cyan"]
-        )
-        self.api_badge.pack(padx=12, pady=8, anchor="w")
 
         # 2. Main Container
         self.main_container = ctk.CTkFrame(self, fg_color=THEME["bg_main"], corner_radius=0)
@@ -327,7 +315,8 @@ class ModernLibraryApp(ctk.CTk):
         self.err_detail_box.insert("1.0", msg)
         self.err_detail_box.configure(state="disabled")
 
-        self.api_badge.configure(text="API: Ngoại Tuyến", text_color=THEME["accent_red"])
+        if hasattr(self, "api_badge"):
+            self.api_badge.configure(text="API: Ngoại Tuyến", text_color=THEME["accent_red"])
         self.error_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
 
     def retry_connection(self):
@@ -343,7 +332,8 @@ class ModernLibraryApp(ctk.CTk):
             self.error_frame.grid_remove()
             for b in self.nav_buttons.values():
                 b.configure(state="normal")
-            self.api_badge.configure(text=f"API: {self.api.base_url}", text_color=THEME["accent_cyan"])
+            if hasattr(self, "api_badge"):
+                self.api_badge.configure(text=f"API: {self.api.base_url}", text_color=THEME["accent_cyan"])
 
             # Cập nhật controller cho views
             for key, view in self.views.items():
